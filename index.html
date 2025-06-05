@@ -100,6 +100,17 @@
   #keyboard button:hover {
     background: #666;
   }
+  /* Selection box style */
+  #selectionBox {
+    position: absolute;
+    border: 3px solid #4af;
+    border-radius: 6px;
+    pointer-events: none;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+    z-index: 100000;
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -130,6 +141,7 @@
 
 <iframe id="viewer" src="https://www.tiktok.com" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
 <div id="cursor"></div>
+<div id="selectionBox"></div>
 
 <!-- On-screen Keyboard -->
 <div id="keyboard"></div>
@@ -162,7 +174,7 @@ function updateCursor() {
 // Start the loop
 requestAnimationFrame(updateCursor);
 
-// Listen for keydown and keyup events
+// Listen for keydown and keyup events for cursor movement
 document.addEventListener("keydown", (e) => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
     keys.add(e.key);
@@ -188,6 +200,73 @@ document.addEventListener("keyup", (e) => {
 window.addEventListener('resize', () => {
   posX = window.innerWidth / 2;
   posY = window.innerHeight / 2;
+});
+
+// --- Selection box & keyboard navigation ---
+
+const selectionBox = document.getElementById("selectionBox");
+
+// The elements to cycle focus through in order:
+const focusableElems = [
+  document.getElementById("urlInput"),
+  document.getElementById("clientSelector"),
+  document.getElementById("menuBtn"),
+  document.getElementById("closeMenuBtn")
+];
+
+let focusIndex = 0;
+
+function updateSelectionBox() {
+  const el = focusableElems[focusIndex];
+  if (!el) {
+    selectionBox.style.display = "none";
+    return;
+  }
+  const rect = el.getBoundingClientRect();
+  selectionBox.style.display = "block";
+  selectionBox.style.width = rect.width + 8 + "px";  // padding for border
+  selectionBox.style.height = rect.height + 8 + "px";
+  selectionBox.style.left = (rect.left - 4) + "px";  // offset for border
+  selectionBox.style.top = (rect.top - 4) + "px";
+}
+
+// Initialize selection box on page load
+updateSelectionBox();
+
+document.addEventListener("keydown", (e) => {
+  // Only handle keys for selection navigation if input is NOT focused
+  const active = document.activeElement;
+  if (active && (active.id === "urlInput" || active.id === "clientSelector")) {
+    // Let normal typing happen if input/select is focused
+    return;
+  }
+
+  if (["ArrowLeft", "ArrowUp"].includes(e.key)) {
+    e.preventDefault();
+    focusIndex--;
+    if (focusIndex < 0) focusIndex = focusableElems.length - 1;
+    updateSelectionBox();
+  } else if (["ArrowRight", "ArrowDown"].includes(e.key)) {
+    e.preventDefault();
+    focusIndex++;
+    if (focusIndex >= focusableElems.length) focusIndex = 0;
+    updateSelectionBox();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    const el = focusableElems[focusIndex];
+    if (!el) return;
+
+    if (el.tagName === "INPUT" || el.tagName === "SELECT") {
+      el.focus();
+      // Optionally open the select dropdown (some browsers open it on focus)
+      if (el.tagName === "SELECT") {
+        const event = new MouseEvent('mousedown', { bubbles: true });
+        el.dispatchEvent(event);
+      }
+    } else if (el.tagName === "BUTTON") {
+      el.click();
+    }
+  }
 });
 </script>
 
