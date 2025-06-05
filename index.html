@@ -135,184 +135,60 @@
 <div id="keyboard"></div>
 
 <script>
-  // --- Cursor Setup ---
-  const cursor = document.getElementById("cursor");
-  let posX = window.innerWidth / 2;
-  let posY = window.innerHeight / 2;
-  const speed = 4;
-  let keys = {
-    ArrowUp: false,
-    ArrowDown: false,
-    ArrowLeft: false,
-    ArrowRight: false
-  };
+ // --- Cursor Setup ---
+const cursor = document.getElementById("cursor");
+let posX = window.innerWidth / 2;
+let posY = window.innerHeight / 2;
+const speed = 8; // a bit faster, adjust as needed
 
-  function updateCursor() {
-    if (keys.ArrowUp) posY -= speed;
-    if (keys.ArrowDown) posY += speed;
-    if (keys.ArrowLeft) posX -= speed;
-    if (keys.ArrowRight) posX += speed;
+// Track which keys are pressed
+const keys = new Set();
 
-    posX = Math.max(0, Math.min(window.innerWidth - 20, posX));
-    posY = Math.max(44, Math.min(window.innerHeight - 20, posY)); // keep under topbar
+// Use requestAnimationFrame for smooth updates
+function updateCursor() {
+  if (keys.has("ArrowUp")) posY -= speed;
+  if (keys.has("ArrowDown")) posY += speed;
+  if (keys.has("ArrowLeft")) posX -= speed;
+  if (keys.has("ArrowRight")) posX += speed;
 
-    cursor.style.transform = `translate(${posX}px, ${posY}px)`;
+  posX = Math.min(Math.max(0, posX), window.innerWidth - 20);
+  posY = Math.min(Math.max(44, posY), window.innerHeight - 20);
+
+  cursor.style.transform = `translate(${posX}px, ${posY}px)`;
+
+  requestAnimationFrame(updateCursor);
+}
+
+// Start the loop
+requestAnimationFrame(updateCursor);
+
+// Listen for keydown and keyup events
+document.addEventListener("keydown", (e) => {
+  if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
+    keys.add(e.key);
+    e.preventDefault(); // prevent default scrolling or other actions
   }
-
-  setInterval(updateCursor, 16); // ~60fps
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key in keys) keys[e.key] = true;
-
-    if (e.key === "Enter") {
-      const el = document.elementFromPoint(posX + 10, posY + 10);
-      if (el) el.click();
+  if (e.key === "Enter") {
+    // Try clicking the element under cursor
+    const el = document.elementFromPoint(posX + 10, posY + 10);
+    if (el) {
+      el.click();
     }
-  });
-
-  document.addEventListener("keyup", (e) => {
-    if (e.key in keys) keys[e.key] = false;
-  });
-
-  window.addEventListener('resize', () => {
-    posX = window.innerWidth / 2;
-    posY = window.innerHeight / 2;
-  });
-
-  // --- Menu Logic ---
-  const menuBtn = document.getElementById('menuBtn');
-  const menuPanel = document.getElementById('menuPanel');
-  const closeMenuBtn = document.getElementById('closeMenuBtn');
-
-  menuBtn.addEventListener('click', () => {
-    menuPanel.style.display = 'block';
-  });
-
-  closeMenuBtn.addEventListener('click', () => {
-    menuPanel.style.display = 'none';
-  });
-
-  // --- URL Input + Keyboard Logic ---
-  const urlInput = document.getElementById('urlInput');
-  const keyboard = document.getElementById('keyboard');
-  const viewer = document.getElementById('viewer');
-
-  // User Agent strings for simulation
-  const userAgents = {
-    tv: "Mozilla/5.0 (Linux; U; Android 9; en-US; Vizio SmartCast TV Build/TVUserAgent) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/69.0.3497.128 Safari/537.36",
-    desktop: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-    mobile: "Mozilla/5.0 (Linux; Android 11; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36"
-  };
-
-  // Current user agent setting
-  let currentUA = userAgents.tv;
-
-  // Function to create a proxy page to override user agent and load the real URL
-  function createProxyPage(url, ua) {
-    // We generate a data URI page that sets userAgent via JS override
-    // Note: true UA override isn't possible without browser extension, but some sites respect navigator.userAgent override
-
-    return `data:text/html;charset=utf-8,
-    <html>
-      <head>
-        <script>
-          Object.defineProperty(navigator, 'userAgent', {
-            get: () => "${ua}",
-            configurable: true
-          });
-          window.location.replace("${url}");
-        </script>
-      </head>
-      <body></body>
-    </html>`;
   }
+});
 
-  function loadURL(url) {
-    if (!url.startsWith("http")) {
-      url = "https://" + url;
-    }
-    viewer.src = createProxyPage(url, currentUA);
+document.addEventListener("keyup", (e) => {
+  if (keys.has(e.key)) {
+    keys.delete(e.key);
+    e.preventDefault();
   }
+});
 
-  // Load initial URL
-  loadURL(urlInput.value || "https://www.tiktok.com");
-
-  // URL input focus: try system keyboard else show on-screen keyboard
-  urlInput.addEventListener('focus', () => {
-    // Detect if system keyboard appears (very limited in browser) — fallback immediately for TV
-    setTimeout(() => {
-      if (document.activeElement === urlInput) {
-        showKeyboard();
-      }
-    }, 500);
-  });
-
-  // On-screen keyboard keys
-  const keysLayout = [
-    'q','w','e','r','t','y','u','i','o','p',
-    'a','s','d','f','g','h','j','k','l',
-    'z','x','c','v','b','n','m',
-    'Backspace','Space','Enter'
-  ];
-
-  function showKeyboard() {
-    keyboard.style.display = 'block';
-    keyboard.innerHTML = '';
-    keysLayout.forEach(k => {
-      const keyBtn = document.createElement('button');
-      keyBtn.textContent = k === 'Space' ? '␣' : k;
-      keyBtn.style.width = k === 'Space' ? '120px' : '40px';
-      keyBtn.addEventListener('click', () => {
-        if (k === 'Backspace') {
-          urlInput.value = urlInput.value.slice(0, -1);
-        } else if (k === 'Space') {
-          urlInput.value += ' ';
-        } else if (k === 'Enter') {
-          hideKeyboard();
-          loadURL(urlInput.value.trim());
-          urlInput.blur();
-        } else {
-          urlInput.value += k;
-        }
-        urlInput.focus();
-      });
-      keyboard.appendChild(keyBtn);
-    });
-  }
-
-  function hideKeyboard() {
-    keyboard.style.display = 'none';
-  }
-
-  // Hide keyboard when URL input loses focus
-  urlInput.addEventListener('blur', () => {
-    setTimeout(hideKeyboard, 200);
-  });
-
-  // Handle user agent selection
-  const clientSelector = document.getElementById('clientSelector');
-  clientSelector.addEventListener('change', () => {
-    currentUA = userAgents[clientSelector.value] || userAgents.tv;
-    loadURL(urlInput.value.trim() || "https://www.tiktok.com");
-  });
-
-  // Load URL on pressing Enter in input box
-  urlInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      loadURL(urlInput.value.trim());
-      urlInput.blur();
-      hideKeyboard();
-    }
-  });
-
-  // Cursor click support for iframe interaction
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const el = document.elementFromPoint(posX + 10, posY + 10);
-      if (el && el.tagName !== 'IFRAME') el.click();
-      // For iframe clicks, inject a synthetic click inside iframe if possible (limited by cross-origin)
-    }
-  });
+// On window resize, reset cursor to center-ish
+window.addEventListener('resize', () => {
+  posX = window.innerWidth / 2;
+  posY = window.innerHeight / 2;
+});
 </script>
 
 </body>
