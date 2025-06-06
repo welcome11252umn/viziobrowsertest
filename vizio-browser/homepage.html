@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Homepage</title>
+  <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+  <div class="urlBar">
+    <input type="text" id="urlInput" placeholder="Enter URL...">
+    <button onclick="goToURL()">Go</button>
+  </div>
+  <div class="tiles">
+    <div class="tile" onclick="window.location.href='browser.html?url=https://www.netflix.com'">Netflix</div>
+    <div class="tile" onclick="window.location.href='browser.html?url=https://www.youtube.com'">YouTube</div>
+    <div class="tile" onclick="window.location.href='browser.html?url=https://www.tiktok.com'">TikTok</div>
+  </div>
+  <script>
+    function goToURL() {
+      const url = document.getElementById('urlInput').value;
+      if (url) window.location.href = `browser.html?url=${encodeURIComponent(url)}`;
+    }
+  </script>
+</body>
+</html>
